@@ -1,0 +1,106 @@
+# ==============================================================================
+# FILE: .github/workflows/android-ci.yml
+# CURRENT VERSION: v1.0.17
+# CHANGELOG:
+#   - v1.0.1: Initial Android CI with actions/checkout@v4, JDK 17, upload-artifact@v4.
+#   - v1.0.2: Switched to setup-gradle@v6 with gradle-version so no local gradlew is needed.
+#   - v1.0.3: Added actions/cache@v4 for Android 17 (API 37) SDK platforms, build-tools & licenses.
+#   - v1.0.4: Bumped Gradle to 9.6.0 to match AGP 9.2.0 and Compose BOM 2026.09.00.
+#   - v1.0.5: Added permissions: contents: write and softprops/action-gh-release@v2 for auto-updates.
+#   - v1.0.9: Added thorough inline documentation (no functional code removed).
+#   - v1.0.16: Upgraded actions/checkout@v4 -> @v6 and actions/cache@v4 -> @v5 for Node 24 (zero Node 20 deprecation warnings).
+#   - v1.0.17: Upgraded android-actions/setup-android@v3 -> @v4, actions/upload-artifact@v4 -> @v6, and softprops/action-gh-release@v2 -> @v3 for full Node 24 runtime compliance.
+# HOW IT WORKS:
+#   1. Triggers on pushes/PRs to main/master or manual workflow_dispatch runs.
+#   2. Cancels stale in-flight runs for the same branch to save runner minutes.
+#   3. Restores cached API 37 SDK + licenses; runs sdkmanager only on cache miss.
+#   4. Runs unit tests (testDebugUnitTest) and builds app-debug.apk via Gradle 9.6.0.
+#   5. Uploads test reports + APK artifacts, and publishes a tagged GitHub Release on main.
+# ==============================================================================
+
+name: Android CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Test & Build Debug APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up JDK 17 (Temurin)
+        uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+
+      - name: Cache Android 17 (API 37) SDK & Licenses
+        id: cache-sdk
+        uses: actions/cache@v5
+        with:
+          path: |
+            ${{ env.ANDROID_HOME }}/platforms/android-37
+            ${{ env.ANDROID_HOME }}/platforms/android-37.0
+            ${{ env.ANDROID_HOME }}/build-tools/37.0.0
+            ${{ env.ANDROID_HOME }}/licenses
+          key: android-sdk-37-v1
+
+      - name: Auto-accept SDK Licenses & Ensure API 37
+        if: steps.cache-sdk.outputs.cache-hit != 'true'
+        run: |
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          if [ -d "$ANDROID_HOME/platforms/android-37.0" ] && [ ! -d "$ANDROID_HOME/platforms/android-37" ]; then
+            ln -s "$ANDROID_HOME/platforms/android-37.0" "$ANDROID_HOME/platforms/android-37"
+          fi
+          sdkmanager "platforms;android-37" "build-tools;37.0.0" || true
+
+      - name: Set up Gradle 9.6.0 & Caching
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: '9.6.0'
+
+      - name: Run Unit Tests
+        run: gradle testDebugUnitTest --no-daemon
+
+      - name: Build Debug APK
+        run: gradle assembleDebug --no-daemon
+
+      - name: Upload Unit Test Reports
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: unit-test-reports
+          path: '**/build/reports/tests/testDebugUnitTest/'
+          if-no-files-found: ignore
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v6
+        with:
+          name: app-debug-apk
+          path: app/build/outputs/apk/debug/app-debug.apk
+
+      - name: Publish GitHub Release for In-App Updates
+        if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+        uses: softprops/action-gh-release@v3
+        with:
+          tag_name: v1.0.${{ github.run_number }}
+          name: BleForge v1.0.${{ github.run_number }}
+          files: app/build/outputs/apk/debug/app-debug.apk

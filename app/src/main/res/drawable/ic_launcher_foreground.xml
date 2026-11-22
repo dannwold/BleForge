@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Radar Sweep Arc -->
+    <path
+        android:strokeColor="#22C55E"
+        android:strokeWidth="3.5"
+        android:strokeLineCap="round"
+        android:pathData="M54,24 A30,30 0 0,1 84,54" />
+    <!-- Glowing Cyan BLE Rune -->
+    <path
+        android:strokeColor="#38BDF8"
+        android:strokeWidth="4.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:pathData="M43,41 L65,63 L54,74 L54,34 L65,45 L43,67" />
+</vector>
