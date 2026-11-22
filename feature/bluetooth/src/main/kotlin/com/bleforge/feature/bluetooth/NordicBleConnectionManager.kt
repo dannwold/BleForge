@@ -1,15 +1,16 @@
 /*
  * ==============================================================================
  * FILE: NordicBleConnectionManager.kt
- * CURRENT VERSION: v1.0.21
+ * CURRENT VERSION: v1.0.22
  * CHANGELOG:
  *   - v1.0.1: Initial BleManager wrapper with MTU 247 handshake, priority HIGH, & heartbeat.
  *   - v1.0.4: Fixed CancellationException swallowing in connect() and switched lookup maps
  *             to ConcurrentHashMap for thread-safe GATT discovery callbacks.
  *   - v1.0.9: Appended detailed KDoc & inline comments explaining handshake & GATT 133 recovery.
  *   - v1.0.12: Added bondState, bond() via ensureBond(), and unbond() via removeBond().
- *   - v1.0.21: Rethrew CancellationException in all suspend runCatching/try-catch blocks
- *              so structured coroutine cancellation is never swallowed.
+ *   - v1.0.21: Retherw CancellationException in all suspend runCatching/try-catch blocks
+ *             so structured coroutine cancellation is never swallowed.
+ *   - v1.0.22: Made disconnect() consistently suspend and added DisconnectRequest support.
  * ==============================================================================
  */
 package com.bleforge.feature.bluetooth
@@ -136,7 +137,7 @@ class NordicBleConnectionManager(
         }
     }
 
-    override fun disconnect() {
+    override suspend fun disconnect() {
         val addr = currentAddress ?: "unknown"
         _connectionState.value = ConnectionState.Disconnecting(addr)
         stopHeartbeat()
