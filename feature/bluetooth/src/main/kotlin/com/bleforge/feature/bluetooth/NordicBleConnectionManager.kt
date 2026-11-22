@@ -1,17 +1,9 @@
 /*
  * ==============================================================================
  * FILE: NordicBleConnectionManager.kt
- * CURRENT VERSION: v1.0.23
+ * CURRENT VERSION: v1.0.24
  * CHANGELOG:
- *   - v1.0.1: Initial BleManager wrapper with MTU 247 handshake, priority HIGH, & heartbeat.
- *   - v1.0.4: Fixed CancellationException swallowing in connect() and switched lookup maps
- *             to ConcurrentHashMap for thread-safe GATT discovery callbacks.
- *   - v1.0.9: Appended detailed KDoc & inline comments explaining handshake & GATT 133 recovery.
- *   - v1.0.12: Added bondState, bond() via ensureBond(), and unbond() via removeBond().
- *   - v1.0.21: Rethrew CancellationException in all suspend runCatching/try-catch blocks
- *             so structured coroutine cancellation is never swallowed.
- *   - v1.0.22: Made disconnect() consistently suspend and added DisconnectRequest support.
- *   - v1.0.23: Kept the inherited Nordic disconnect() request signature and added suspendDisconnect().
+ *   - v1.0.23: Decoupled app-level disconnectAndClose() from Nordic disconnect(): DisconnectRequest.
  * ==============================================================================
  */
 package com.bleforge.feature.bluetooth
@@ -49,7 +41,6 @@ class NordicBleConnectionManager(
     private var heartbeatJob: Job? = null
     private var currentAddress: String? = null
 
-    /** Runs [block] and returns [Result], always rethrowing [CancellationException]. */
     private suspend inline fun <T> runSuspendCatching(crossinline block: suspend () -> T): Result<T> =
         try {
             Result.success(block())
@@ -127,8 +118,7 @@ class NordicBleConnectionManager(
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            try { suspendDisconnect() } catch (ce: CancellationException) { throw ce } catch (_: Throwable) {}
-            close()
+            disconnectAndClose()
             val delayMs = backoff.nextDelayMs()
             _connectionState.value = ConnectionState.Error(address, 133, t.message ?: "Connection failed")
             if (delayMs != null && !autoConnect) {
@@ -138,17 +128,19 @@ class NordicBleConnectionManager(
         }
     }
 
-    override suspend fun disconnect() {
-        suspendDisconnect()
-    }
-
-    private suspend fun suspendDisconnect() {
+    override suspend fun disconnectAndClose() {
         val addr = currentAddress ?: "unknown"
         _connectionState.value = ConnectionState.Disconnecting(addr)
         stopHeartbeat()
-        try { super.disconnect().suspend() } catch (ce: CancellationException) { throw ce } catch (_: Throwable) {}
-        close()
-        _connectionState.value = ConnectionState.Disconnected
+        try {
+            disconnect().suspend()
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (_: Throwable) {
+        } finally {
+            close()
+            _connectionState.value = ConnectionState.Disconnected
+        }
     }
 
     override suspend fun bond(): Result<Unit> = runSuspendCatching {

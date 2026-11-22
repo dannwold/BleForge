@@ -9,7 +9,7 @@ interface BleConnectionManager {
     val bondState: StateFlow<BondState>
     val discoveredServices: StateFlow<List<GattServiceInfo>>
     suspend fun connect(address: String, autoConnect: Boolean = false)
-    suspend fun disconnect()
+    suspend fun disconnectAndClose()
     suspend fun bond(): Result<Unit>
     suspend fun unbond(): Result<Unit>
     suspend fun refreshGattCache()

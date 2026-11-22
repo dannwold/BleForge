@@ -2,7 +2,7 @@ package com.bleforge.feature.bluetooth
 
 import com.bleforge.core.model.*
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -23,7 +23,7 @@ class BleMacroEngineTest {
             override val bondState = MutableStateFlow(BondState.NONE)
             override val discoveredServices = MutableStateFlow<List<GattServiceInfo>>(emptyList())
             override suspend fun connect(address: String, autoConnect: Boolean) {}
-            override suspend fun disconnect() {}
+            override suspend fun disconnectAndClose() {}
             override suspend fun bond() = Result.success(Unit)
             override suspend fun unbond() = Result.success(Unit)
             override suspend fun refreshGattCache() {}
