@@ -1,12 +1,3 @@
-/*
- * ==============================================================================
- * FILE: BleConnectionManager.kt
- * CURRENT VERSION: v1.0.12
- * CHANGELOG:
- *   - v1.0.2: Initial BleConnectionManager interface.
- *   - v1.0.12: Added bondState, bond(), and unbond() for manual BLE bonding control.
- * ==============================================================================
- */
 package com.bleforge.feature.bluetooth
 
 import com.bleforge.core.model.*
