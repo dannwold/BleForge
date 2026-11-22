@@ -136,7 +136,7 @@ class NordicBleConnectionManager(
         }
     }
 
-    override suspend fun disconnect() {
+    override fun disconnect() {
         val addr = currentAddress ?: "unknown"
         _connectionState.value = ConnectionState.Disconnecting(addr)
         stopHeartbeat()
@@ -184,10 +184,11 @@ class NordicBleConnectionManager(
         stopHeartbeat()
         if (!config.enabled) return
         heartbeatJob = scope.launch {
+            val payload = config.payload
             while (isActive) {
                 delay(config.intervalMs)
-                if (config.payload == null) readCharacteristic(config.serviceUuid, config.charUuid)
-                else writeCharacteristic(config.serviceUuid, config.charUuid, config.payload, withResponse = false)
+                if (payload == null) readCharacteristic(config.serviceUuid, config.charUuid)
+                else writeCharacteristic(config.serviceUuid, config.charUuid, payload, withResponse = false)
             }
         }
     }
